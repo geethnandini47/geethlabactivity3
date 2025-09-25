@@ -11,8 +11,17 @@ Parameters:
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+  DefaultVPC:
+    Type: AWS::EC2::VPC::Id
+    Description: The default VPC to launch instances into
+  DefaultSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The default subnets for the Auto Scaling Group
 
 Resources:
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
 
   WebappSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -24,12 +33,6 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-
-  WebappInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles:
-        - !Ref WebappRole
 
   WebappRole:
     Type: AWS::IAM::Role
@@ -44,6 +47,12 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
         - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeploy
+
+  WebappInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref WebappRole
 
   WebappLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -64,6 +73,32 @@ Resources:
           chmod +x ./install
           ./install auto
 
+  WebappTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref DefaultVPC
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      HealthCheckPath: /
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets: !Ref DefaultSubnets
+      SecurityGroups:
+        - !Ref WebappSecurityGroup
+
+  WebappListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref WebappTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
   WebappAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -77,31 +112,23 @@ Resources:
       TargetGroupARNs:
         - !Ref WebappTargetGroup
 
-  ApplicationLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  GitHubRole:
+    Type: AWS::IAM::Role
     Properties:
-      Subnets: !Ref DefaultSubnets
-      SecurityGroups:
-        - !Ref WebappSecurityGroup
-
-  WebappTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      VpcId: !Ref DefaultVPC
-      Port: 80
-      Protocol: HTTP
-      TargetType: instance
-      HealthCheckPath: /
-
-  WebappListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref WebappTargetGroup
-      LoadBalancerArn: !Ref ApplicationLoadBalancer
-      Port: 80
-      Protocol: HTTP
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: repo:${GitHubRepoName}:*
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
 
 Outputs:
   ALBDNSName:
