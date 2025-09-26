@@ -58,9 +58,11 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       - name: Deploy with CodeDeploy
         run: |
+          echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
           commit_hash=$(git rev-parse HEAD)
           aws deploy create-deployment \
             --application-name CodeDeployAppNameWithASG \
             --deployment-group-name CodeDeployGroupName \
             --s3-location bucket=${{ env.S3BUCKET }},key=SpringBootHelloWorldExampleApplication.war,bundleType=zip \
             --ignore-application-stop-failures
+
