@@ -5,9 +5,8 @@ on:
 
 env:
   applicationfolder: spring-boot-hello-world-example
-  AWS_REGION: ##region##
-  S3BUCKET: ##s3-bucket## 
-
+  AWS_REGION: us-east-1
+  S3BUCKET: codedeploystack-webappdeploymentbucket-lymvz0np9mjd
 
 jobs:
   build:
@@ -60,4 +59,8 @@ jobs:
     - run: |
         echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
         commit_hash=`git rev-parse HEAD`
-        aws deploy create-deployment --application-name CodeDeployAppNameWithASG --deployment-group-name CodeDeployGroupName --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
+        aws deploy create-deployment \
+          --application-name CodeDeployAppNameWithASG \
+          --deployment-group-name CodeDeployGroupName \
+          --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash \
+          --ignore-application-stop-failures
