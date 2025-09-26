@@ -5,8 +5,9 @@ on:
 
 env:
   applicationfolder: spring-boot-hello-world-example
-  AWS_REGION: us-east-1
-  S3BUCKET: codedeploystack-webappdeploymentbucket-lymvz0np9mdj
+  AWS_REGION: ca-central-1
+  S3BUCKET: codedeploystack-webappdeploymentbucket-bczb3vkrtmiw 
+
 
 jobs:
   build:
@@ -50,36 +51,13 @@ jobs:
       id-token: write
       contents: read
     steps:
-<<<<<<< HEAD
     - uses: actions/checkout@v2
     - uses: aws-actions/configure-aws-credentials@v1
       with:
         role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
         role-session-name: GitHub-Action-Role
         aws-region: ${{ env.AWS_REGION }}
-    - name: Deploy with CodeDeploy
-      run: |
-        commit_hash=$(git rev-parse HEAD)
-        aws deploy create-deployment \
-          --application-name CodeDeployAppNameWithASG \
-          --deployment-group-name CodeDeployGroupName \
-          --s3-location bucket=${{ env.S3BUCKET }},key=SpringBootHelloWorldExampleApplication.war,bundleType=war \
-          --ignore-application-stop-failures
-=======
-      - uses: actions/checkout@v2
-      - uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
-          role-session-name: GitHub-Action-Role
-          aws-region: ${{ env.AWS_REGION }}
-      - name: Deploy with CodeDeploy
-        run: |
-          echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
-          commit_hash=$(git rev-parse HEAD)
-          aws deploy create-deployment \
-            --application-name CodeDeployAppNameWithASG \
-            --deployment-group-name CodeDeployGroupName \
-            --s3-location bucket=${{ env.S3BUCKET }},key=SpringBootHelloWorldExampleApplication.war,bundleType=zip \
-            --ignore-application-stop-failures
-
->>>>>>> f255e0265cd123da959f0bea7916350cbc69f620
+    - run: |
+        echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
+        commit_hash=`git rev-parse HEAD`
+        aws deploy create-deployment --application-name CodeDeployAppNameWithASG --deployment-group-name CodeDeployGroupName --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
