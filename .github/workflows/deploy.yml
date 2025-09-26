@@ -30,13 +30,19 @@ jobs:
         with:
           java-version: 1.8
 
-      - name: Build and Package Maven
+      - name: Build with Maven
         working-directory: ${{ env.applicationfolder }}
         run: mvn -Dmaven.test.skip=true clean install
 
-      - name: Upload Artifact to s3
-        working-directory: ${{ env.applicationfolder }}/target
-        run: aws s3 cp *.war s3://${{ env.S3BUCKET }}/
+      - name: Package app for CodeDeploy
+        run: |
+          mkdir package
+          cp appspec.yml package/
+          cp -r aws/scripts package/
+          cp spring-boot-hello-world-example/target/*.war package/
+          cd package
+          zip -r app.zip .
+          aws s3 cp app.zip s3://${{ env.S3BUCKET }}/app.zip
 
   deploy:
     needs: build
@@ -53,11 +59,10 @@ jobs:
         role-session-name: GitHub-Action-Role
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Deploy to CodeDeploy
+    - name: Deploy with CodeDeploy
       run: |
-        commit_hash=$(git rev-parse HEAD)
         aws deploy create-deployment \
           --application-name CodeDeployAppNameWithASG \
           --deployment-group-name CodeDeployGroupName \
-          --s3-location bucket=${{ env.S3BUCKET }},key=SpringBootHelloWorldExampleApplication.war,bundleType=zip \
+          --s3-location bucket=${{ env.S3BUCKET }},key=app.zip,bundleType=zip \
           --ignore-application-stop-failures
