@@ -1,10 +1,20 @@
-#!/bin/bash
-set -xe
+version: 0.0
+os: linux
 
+files:
+  - source: /
+    destination: /home/ec2-user
 
-# Copy war file from S3 bucket to tomcat webapp folder
-aws s3 cp s3://##s3-bucket##/SpringBootHelloWorldExampleApplication.war /usr/local/tomcat9/webapps/SpringBootHelloWorldExampleApplication.war
-
-
-# Ensure the ownership permissions are correct.
-chown -R tomcat:tomcat /usr/local/tomcat9/webapps
+hooks:
+  AfterInstall:
+    - location: aws/scripts/after-install.sh
+      timeout: 300
+      runas: root
+  ApplicationStart:
+    - location: aws/scripts/start-server.sh
+      timeout: 300
+      runas: root
+  ApplicationStop:
+    - location: aws/scripts/stop-server.sh
+      timeout: 300
+      runas: root
